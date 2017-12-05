@@ -1,0 +1,223 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Melodic Similarity Experiment</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="jspsych-5.0.3/jspsych.js"></script>
+    <script src="jspsych-5.0.3/plugins/jspsych-text.js"></script>
+	<script src="jspsych-5.0.3/plugins/jspsych-single-stim.js"></script>
+	<script src="jspsych-5.0.3/plugins/jspsych-single-audio.js"></script>
+	<script src="jspsych-5.0.3/plugins/jspsych-survey-multi-choice.js"></script>
+	<script src="jspsych-5.0.3/plugins/jspsych-survey-text.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/4.7.0/firebase.js"></script>
+    <link href="jspsych-5.0.3/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+  </head>
+  <body>
+  </body>
+  
+  <!-- 
+  
+  Perception of Compositional Structures 
+  Final Project
+  Fall 2017
+  
+  Tim de Reuse,
+  TJ Cole
+  Maria
+  
+  -->
+  
+  
+	<script src="https://www.gstatic.com/firebasejs/4.6.2/firebase-app.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/4.6.2/firebase-auth.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/4.6.2/firebase-database.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/4.6.2/firebase-firestore.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/4.6.2/firebase-messaging.js"></script>
+	  
+	<script>
+	// INITIALIZING FIREBASE
+	// ************************
+	  var config = {
+		apiKey: "AIzaSyA1ooyrh0eV8Ggih9L6hv7ImjNvLTMsP2c",
+		authDomain: "responsestomelodysurvey.firebaseapp.com",
+		databaseURL: "https://responsestomelodysurvey.firebaseio.com",
+		projectId: "responsestomelodysurvey",
+		storageBucket: "responsestomelodysurvey.appspot.com",
+		messagingSenderId: "174145197970"
+	  };
+	  var defaultApp = firebase.initializeApp(config);
+	  var defaultDatabase = firebase.database();
+	
+	// JSPSYCH EXPERIMENT SETUP
+	// ************************
+    var timeline = [];
+	
+	//insert decoy trials (there are 4 of them) after these real trials
+	var whenToDecoy = [1,4,8,11];
+	var currentDecoyIndex = 1;
+	
+	var explanation = {
+	type:"text",
+	text:"<p>In this experiment, you will be judging similarity between brief, atonal melodies.</p>" + 
+	   "<p>This experiment should take you 15-20 minutes in total to complete.</p>" +
+      "<p>On each trial, you will hear a short melody, two variations of that melody, and finally the original melody again.</p>" +
+	  "<p>For each trial, you will be asked whether the first or second variation sounds more similar to the original.</p>" +
+	  "<p>Press any key to begin.</p>"
+	};
+	timeline.push(explanation);
+	
+	var askForName = {
+		type: 'survey-text',
+		required: [true],
+		data:{imp:"this one has the name"},
+		questions:["Please enter name or student ID number."],
+	};
+	timeline.push(askForName);
+
+	//loop through all experiments, using the index of the for loop in the filename.
+	for (i = 1; i < 5; i++){
+	
+		var swapEm = false;
+		if (Math.random() > 0.5){ swapEm = true;}
+		console.log(" swapem:" + swapEm);
+	
+		var modelName = "mels/Model " + i + ".mp3";
+		var sample1Name = 'mels/Sample ' + i;
+		var sample2Name = 'mels/Sample ' + i;
+		
+		//randomly swap the variation samples around
+		if(swapEm){sample1Name += "a.mp3"; sample2Name += "b.mp3";}
+		else{sample1Name += "b.mp3"; sample2Name += "a.mp3";}
+	
+		//four single-audio trials in a row to play the samples
+		var audtrial = {
+			type: 'single-audio',
+			timing_post_trial: 0,
+			response_ends_trial: true,
+			prompt: "default",
+			timing_response:5000,
+			timeline: [
+				{stimulus: modelName, prompt: "Playing Original..."},
+				{stimulus: sample1Name, prompt: "Playing Variation 1..."},
+				{stimulus: sample2Name, prompt: "Playing Variation 2..."},
+				{stimulus: modelName, prompt: "Playing Original..."}
+				]
+		};
+		timeline.push(audtrial);
+		
+		//ask user which melody was similar
+		var askIt = {
+			type: 'survey-multi-choice',
+			required: [true],
+			questions: ["Which of the variations on the melody was most similar to the original?"],
+			options: [["Variation 1", "Variation 2"]],
+			data: {swapped: swapEm, isDecoy: false, trialNumber: i}
+		};
+		timeline.push(askIt);
+		
+		//could put all this in a function if I have time
+		//PUT A FAKE TRIAL IN IF THIS IS AN INDEX THAT SHOULD BE FOLLOWED BY A DECOY
+		if(whenToDecoy.indexOf(i) > -1){
+			console.log("we got a decoy at " + i);
+			
+			swapEm = false;
+			if (Math.random() > 0.5){ swapEm = true;}
+		
+			modelName = "mels/Decoy Model " + currentDecoyIndex + ".mp3";
+			sample1Name = 'mels/Decoy Sample ' + currentDecoyIndex;
+			sample2Name = 'mels/Decoy Sample ' + currentDecoyIndex;
+			
+			if(swapEm){sample1Name += "a.mp3"; sample2Name += "b.mp3";}
+			else{sample1Name += "b.mp3"; sample2Name += "a.mp3";}
+		
+			audtrial = {
+				type: 'single-audio',
+				timing_post_trial: 0,
+				response_ends_trial: true,
+				prompt: "default",
+				timing_response:5500,
+				timeline: [
+					{stimulus: modelName, prompt: "Playing Original..."},
+					{stimulus: sample1Name, prompt: "Playing Variation 1..."},
+					{stimulus: sample2Name, prompt: "Playing Variation 2..."},
+					{stimulus: modelName, prompt: "Playing Original..."}
+					]
+			};
+			timeline.push(audtrial);
+			
+			var askIt = {
+				type: 'survey-multi-choice',
+				required: [true],
+				questions: ["Which of the variations on the melody was most similar to the original?"],
+				options: [["Variation 1", "Variation 2"]],
+				data: {swapped: swapEm, isDecoy: true, trialNumber: i, decoyIndex: currentDecoyIndex}
+			};
+			timeline.push(askIt);
+			currentDecoyIndex++;
+		}
+	}
+	
+	var ending = {
+		type:"text",
+		text:"<p>This concludes the experiment. Thank you for your participation!</p>",
+		on_trial_start: function() {
+			var allData = jsPsych.data.getData();
+			var userID = JSON.parse(allData[1]['responses'])['Q0'];
+			userID = userID.replace(/[^\w\s]/gi, '');
+			//sanitize it because otherwise someone's gonna put a backslash
+			//in their name for some reason and my whole database will break
+			
+			//loop over all trials to extract the relevant data
+			//if a trial is not multiple choice then we don't care about it
+			for(var i = 0; i < allData.length; i++){
+				if(allData[i]['trial_type'] != 'survey-multi-choice'){
+					//console.log(allData[i]['trial_type'] + " not a survey - continuing");
+					continue;					
+					}
+				
+				//extract whether the user selected the first or the second choice
+				var which = JSON.parse(allData[i]['responses'])['Q0'];
+				which = which[which.length - 1];
+				
+				var wasSwap = allData[i]['swapped'];
+				var wasDecoy = allData[i]['isDecoy'];
+				var trialID = allData[i]['trialNumber'];
+				if(wasDecoy) {trialID = "D" + allData[i]['decoyIndex'];}
+				
+				//did the user choose the first one?
+				var userChoseA = (which == '1');
+				//if the choices were swapped, then the user actually chose B
+				if(wasSwap){userChoseA = !userChoseA;}
+				 
+				console.log(userID + " " + userChoseA + " " + wasDecoy + " " + trialID + " " + wasSwap);
+				
+				//send this stuff to the database
+				firebase.database().ref('users/' + userID + '/trial' + trialID).set({
+					userChoice: which,
+					userChoseA: userChoseA,
+					wasDecoy: wasDecoy,
+					wasSwap: wasSwap
+					});
+				
+				} //end for loop sending data
+			} //end on trial start function
+		};
+	timeline.push(ending);
+	
+	//start the experiment running
+	jsPsych.init({
+		timeline: timeline,
+		on_finish: function() {jsPsych.data.displayData();}
+	});
+  
+
+	 
+
+  
+  
+
+	
+	
+  </script>
+</html>
